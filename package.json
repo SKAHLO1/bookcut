@@ -1,9 +1,12 @@
 {
   "scripts": {
-    "dev": "next dev --turbopack",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
+    "dev": "node init && next dev --turbopack",
+    "build": "node init && next build",
+    "build:clean": "node init && rimraf .next && npm run build",
+    "start": "node init && next start",
+    "lint": "next lint",
+    "deploy": "vercel --force",
+    "deploy:prod": "vercel --prod --force"
   },
   "dependencies": {
     "@radix-ui/react-label": "^2.1.7",
