@@ -11,8 +11,7 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Scissors, MapPin, Clock, Star } from "lucide-react"
 import Loading from "@/components/loading"
-import GoogleSignInButton from "@/components/google-signin-button"
-import GoogleSignInLoginButton from "@/components/google-signin-login-button"
+import GoogleAuthNuclear from "@/components/GoogleAuthNuclear"
 
 export default function HomePage() {
   const { user, login, signup, googleSignIn, googleSignInLogin, loading } = useAuth()
@@ -27,21 +26,12 @@ export default function HomePage() {
     location: { address: "", coordinates: [0, 0] },
   })
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
-  const [showResetPassword, setShowResetPassword] = useState(false)
-  const [resetToken, setResetToken] = useState("")
-  const [newPassword, setNewPassword] = useState("")
-  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("")
 
   useEffect(() => {
     if (!loading && user) {
-      console.log("User authenticated, redirecting based on userType:", user.userType)
-      console.log("Full user object:", user)
       if (user.userType === "barber") {
-        console.log("Redirecting to barber dashboard")
         router.push("/barber/dashboard")
       } else {
-        console.log("Redirecting to user dashboard")
         router.push("/user/dashboard")
       }
     }
@@ -54,9 +44,7 @@ export default function HomePage() {
     try {
       if (isLogin) {
         const success = await login(formData.email, formData.password)
-        if (success) {
-          // Redirect handled by useEffect
-        } else {
+        if (!success) {
           alert("Login failed. Please check your credentials.")
         }
       } else {
@@ -77,108 +65,34 @@ export default function HomePage() {
     }
   }
 
-  const handleGoogleSuccess = async (credential: string, userType: "user" | "barber") => {
-    console.log("=== handleGoogleSuccess called ===")
-    console.log("Received userType in handleGoogleSuccess:", userType)
-    console.log("typeof userType:", typeof userType)
-    console.log("userType === 'user':", userType === "user")
-    console.log("userType === 'barber':", userType === "barber")
-    
+  const handleGoogleSuccess = async (credential: string, userType?: "user" | "barber") => {
+    console.log("Google success:", { credential, userType })
     setIsSubmitting(true)
     try {
-      const success = await googleSignIn(credential, userType)
-      if (success) {
-        // Redirect handled by useEffect
+      if (isLogin) {
+        const success = await googleSignInLogin(credential)
+        if (!success) {
+          alert("Google sign-in failed. Please try again.")
+        }
       } else {
-        alert("Google sign-in failed. Please try again.")
+        const finalUserType = userType || formData.userType
+        const success = await googleSignIn(credential, finalUserType as "user" | "barber")
+        if (!success) {
+          alert("Google sign-up failed. Please try again.")
+        }
       }
     } catch (error) {
-      console.error("Google sign-in error:", error)
-      alert("Google sign-in failed. Please try again.")
+      console.error("Google auth error:", error)
+      alert("Google authentication failed. Please try again.")
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleGoogleError = (error: any) => {
-    console.error("Google sign-in error:", error)
-    alert("Google sign-in failed. Please try again.")
-  }
-
-  const handleGoogleLoginSuccess = async (credential: string) => {
-    setIsSubmitting(true)
-    try {
-      const success = await googleSignInLogin(credential)
-      if (success) {
-        // Redirect handled by useEffect
-      } else {
-        // Error message handled by googleSignInLogin function
-      }
-    } catch (error) {
-      console.error("Google sign-in error:", error)
-      alert("Google sign-in failed. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      const response = await fetch("/api/auth/forgot-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: forgotPasswordEmail }),
-      })
-
-      const data = await response.json()
-      
-      if (response.ok) {
-        alert(data.message)
-        setShowForgotPassword(false)
-      } else {
-        alert(data.error || "Failed to send reset email")
-      }
-    } catch (error) {
-      console.error("Forgot password error:", error)
-      alert("An error occurred. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
-  }
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-
-    try {
-      const response = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: resetToken, password: newPassword }),
-      })
-
-      const data = await response.json()
-      
-      if (response.ok) {
-        alert("Password reset successfully! Please login with your new password.")
-        setShowResetPassword(false)
-        setShowForgotPassword(false)
-        setResetToken("")
-        setNewPassword("")
-        setForgotPasswordEmail("")
-        setIsLogin(true)
-      } else {
-        alert(data.error || "Failed to reset password")
-      }
-    } catch (error) {
-      console.error("Reset password error:", error)
-      alert("An error occurred. Please try again.")
-    } finally {
-      setIsSubmitting(false)
-    }
+    console.error("Google auth error:", error)
+    alert("Google authentication failed. Please try again.")
+    setIsSubmitting(false)
   }
 
   if (loading) {
@@ -224,263 +138,135 @@ export default function HomePage() {
           <Card className="card-gradient mx-4 sm:mx-0 card-touch">
             <CardHeader>
               <CardTitle className="text-center text-xl sm:text-2xl text-[#2C3E50]">
-                {showForgotPassword ? "Reset Password" : showResetPassword ? "Set New Password" : isLogin ? "Welcome Back" : "Join BookCut"}
+                {isLogin ? "Welcome Back" : "Join BookCut"}
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {/* Forgot Password Form */}
-              {showForgotPassword && (
-                <form onSubmit={handleForgotPassword} className="space-y-4">
-                  <div>
-                    <Label htmlFor="forgotEmail">Email Address</Label>
-                    <Input
-                      id="forgotEmail"
-                      type="email"
-                      value={forgotPasswordEmail}
-                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
-                      required
-                      className="mt-1"
-                      disabled={isSubmitting}
-                      placeholder="Enter your email address"
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full btn-primary btn-touch" disabled={isSubmitting}>
-                    {isSubmitting ? "Sending..." : "Send Reset Link"}
-                  </Button>
-
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowForgotPassword(false)
-                        setForgotPasswordEmail("")
-                      }}
-                      className="text-[#FF6B35] hover:underline"
-                      disabled={isSubmitting}
-                    >
-                      Back to Sign In
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Reset Password Form */}
-              {showResetPassword && (
-                <form onSubmit={handleResetPassword} className="space-y-4">
-                  <div>
-                    <Label htmlFor="resetToken">Reset Token</Label>
-                    <Input
-                      id="resetToken"
-                      type="text"
-                      value={resetToken}
-                      onChange={(e) => setResetToken(e.target.value)}
-                      required
-                      className="mt-1"
-                      disabled={isSubmitting}
-                      placeholder="Enter reset token"
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="newPassword">New Password</Label>
-                    <Input
-                      id="newPassword"
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      className="mt-1"
-                      disabled={isSubmitting}
-                      placeholder="Enter new password"
-                      minLength={6}
-                    />
-                  </div>
-
-                  <Button type="submit" className="w-full btn-primary btn-touch" disabled={isSubmitting}>
-                    {isSubmitting ? "Resetting..." : "Reset Password"}
-                  </Button>
-
-                  <div className="text-center">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowResetPassword(false)
-                        setResetToken("")
-                        setNewPassword("")
-                      }}
-                      className="text-[#FF6B35] hover:underline"
-                      disabled={isSubmitting}
-                    >
-                      Back to Sign In
-                    </button>
-                  </div>
-                </form>
-              )}
-
-              {/* Google Sign-In Buttons */}
-              {!isLogin && !showForgotPassword && !showResetPassword && (
-                <div className="space-y-3 mb-6">
-                  <GoogleSignInButton
-                    userType="user"
-                    onSuccess={handleGoogleSuccess}
-                    onError={handleGoogleError}
-                    disabled={isSubmitting}
-                  />
-
-                  <GoogleSignInButton
-                    userType="barber"
-                    onSuccess={handleGoogleSuccess}
-                    onError={handleGoogleError}
-                    disabled={isSubmitting}
-                  />
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t border-gray-300" />
+              
+              {/* NUCLEAR GOOGLE AUTH - NO MORE CACHING ISSUES! */}
+              <div className="space-y-3 mb-6">
+                {!isLogin && (
+                  <>
+                    {/* Account Type Selector */}
+                    <div>
+                      <Label>Account Type</Label>
+                      <Tabs
+                        value={formData.userType}
+                        onValueChange={(value) => setFormData({ ...formData, userType: value })}
+                        className="mt-1"
+                      >
+                        <TabsList className="grid w-full grid-cols-2 bg-gray-100">
+                          <TabsTrigger value="user" className="data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white">
+                            Customer
+                          </TabsTrigger>
+                          <TabsTrigger value="barber" className="data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white">
+                            Barber
+                          </TabsTrigger>
+                        </TabsList>
+                      </Tabs>
                     </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">Or continue with email</span>
-                    </div>
+                  </>
+                )}
+
+                {/* NUCLEAR GOOGLE AUTH BUTTON */}
+                <GoogleAuthNuclear
+                  userType={!isLogin ? formData.userType as "user" | "barber" : undefined}
+                  onSuccess={handleGoogleSuccess}
+                  onError={handleGoogleError}
+                  disabled={isSubmitting}
+                  isSignup={!isLogin}
+                />
+
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-gray-300" />
+                  </div>
+                  <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-gray-500">Or continue with email</span>
                   </div>
                 </div>
-              )}
+              </div>
 
-              {!showForgotPassword && !showResetPassword && (
-                <>
-                  <form onSubmit={handleSubmit} className="space-y-4">
-                    {!isLogin && (
-                      <>
-                        <div>
-                          <Label htmlFor="name">Full Name</Label>
-                          <Input
-                            id="name"
-                            type="text"
-                            value={formData.name}
-                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                            required
-                            className="mt-1"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                        <div>
-                          <Label htmlFor="phone">Phone Number</Label>
-                          <Input
-                            id="phone"
-                            type="tel"
-                            value={formData.phone}
-                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                            required
-                            className="mt-1"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                        <div>
-                          <Label>Account Type</Label>
-                          <Tabs
-                            value={formData.userType}
-                            onValueChange={(value) => setFormData({ ...formData, userType: value })}
-                            className="mt-1"
-                          >
-                            <TabsList className="grid w-full grid-cols-2 bg-gray-100">
-                              <TabsTrigger 
-                                value="user" 
-                                disabled={isSubmitting}
-                                className="data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
-                              >
-                                Customer
-                              </TabsTrigger>
-                              <TabsTrigger 
-                                value="barber" 
-                                disabled={isSubmitting}
-                                className="data-[state=active]:bg-[#FF6B35] data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
-                              >
-                                Barber
-                              </TabsTrigger>
-                            </TabsList>
-                          </Tabs>
-                        </div>
-                      </>
-                    )}
-
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {!isLogin && (
+                  <>
                     <div>
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="name">Full Name</Label>
                       <Input
-                        id="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                        id="name"
+                        type="text"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         required
                         className="mt-1"
                         disabled={isSubmitting}
                       />
                     </div>
-
                     <div>
-                      <Label htmlFor="password">Password</Label>
+                      <Label htmlFor="phone">Phone Number</Label>
                       <Input
-                        id="password"
-                        type="password"
-                        value={formData.password}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                         required
                         className="mt-1"
                         disabled={isSubmitting}
                       />
                     </div>
+                  </>
+                )}
 
-                    <Button type="submit" className="w-full btn-primary btn-touch" disabled={isSubmitting}>
-                      {isSubmitting ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
-                    </Button>
-                  </form>
+                <div>
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                    required
+                    className="mt-1"
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-                  {/* Google Sign-In for Login */}
-                  {isLogin && (
-                    <div className="mt-4">
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t border-gray-300" />
-                        </div>
-                        <div className="relative flex justify-center text-sm">
-                          <span className="px-2 bg-white text-gray-500">Or</span>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <GoogleSignInLoginButton
-                          onSuccess={handleGoogleLoginSuccess}
-                          onError={handleGoogleError}
-                          disabled={isSubmitting}
-                        />
-                      </div>
-                    </div>
-                  )}
+                <div>
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                    required
+                    className="mt-1"
+                    disabled={isSubmitting}
+                  />
+                </div>
 
-                  <div className="text-center mt-4 space-y-2">
-                    {isLogin && (
-                      <button
-                        type="button"
-                        onClick={() => setShowForgotPassword(true)}
-                        className="text-[#FF6B35] hover:underline block w-full"
-                        disabled={isSubmitting}
-                      >
-                        Forgot Password?
-                      </button>
-                    )}
-                    
-                    <button
-                      type="button"
-                      onClick={() => setIsLogin(!isLogin)}
-                      className="text-[#FF6B35] hover:underline"
-                      disabled={isSubmitting}
-                    >
-                      {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
-                    </button>
-                  </div>
-                </>
-              )}
+                <Button type="submit" className="w-full btn-primary btn-touch" disabled={isSubmitting}>
+                  {isSubmitting ? "Please wait..." : isLogin ? "Sign In" : "Create Account"}
+                </Button>
+              </form>
+
+              <div className="text-center mt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsLogin(!isLogin)}
+                  className="text-[#FF6B35] hover:underline"
+                  disabled={isSubmitting}
+                >
+                  {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                </button>
+              </div>
+
             </CardContent>
           </Card>
         </div>
+      </div>
+
+      {/* DEBUG INFO */}
+      <div className="fixed bottom-4 right-4 bg-black text-white p-2 rounded text-xs">
+        🚀 Nuclear Google Auth - No Cache Issues!
       </div>
     </div>
   )
