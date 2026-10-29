@@ -1,9 +1,9 @@
 {
   "scripts": {
-    "dev": "node init && next dev --turbopack",
-    "build": "node init && next build",
-    "build:clean": "node init && rimraf .next && npm run build",
-    "start": "node init && next start",
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "build:clean": "rimraf .next && npm run build",
+    "start": "next start",
     "lint": "next lint",
     "deploy": "vercel --force",
     "deploy:prod": "vercel --prod --force"
